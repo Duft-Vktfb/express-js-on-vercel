@@ -146,5 +146,3 @@ app.get('/messages', (req, res) => {
 
   res.json(enrichedMsgs);
 });
-
-app.listen(3000, "0.0.0.0");
