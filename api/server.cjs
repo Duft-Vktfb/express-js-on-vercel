@@ -3,12 +3,13 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'M3')));
 
-const DATA_FILE = path.join(__dirname, '..', 'data.json');
-const MSG_FILE = path.join(__dirname, '..', 'messages.json');
+// Serwuj pliki statyczne z public
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+const DATA_FILE = path.join(__dirname, '..', 'src', 'data.json');
+const MSG_FILE = path.join(__dirname, '..', 'src', 'messages.json');
 
 // --- Funkcje plikowe ---
 const readData = () => {
@@ -172,5 +173,5 @@ app.get('/messages', (req, res) => {
   res.json(enriched);
 });
 
-// --- NAJWAŻNIEJSZE: eksport handlera ---
-module.exports = (req, res) => app(req, res);
+// EKSPORT DLA VERCELA - NAJWAŻNIEJSZE!
+module.exports = app;
