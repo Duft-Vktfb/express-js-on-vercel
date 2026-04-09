@@ -173,4 +173,4 @@ app.get('/messages', (req, res) => {
 });
 
 // --- NAJWAŻNIEJSZE: eksport handlera ---
-module.exports = app;
+module.exports = (req, res) => app(req, res);
