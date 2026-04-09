@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3 Chat</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 20px; box-sizing: border-box; }
+        
+        /* Klasa włączana tylko po zalogowaniu */
+        .logged-in-bg {
+            background-image: url('8K.png');
+            background-size: cover;       /* Skaluje proporcjonalnie, ucina nadmiar, NIE spłaszcza */
+            background-position: center;  /* Środkuje obrazek */
+            background-attachment: fixed; /* Tło stoi w miejscu, gdy przewijasz stronę */
+            background-repeat: no-repeat; /* Nie powiela obrazka jako kafelków */
+        }
+        
+        /* Kontenery ogólne */
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .center-box { max-width: 350px; margin: 50px auto; text-align: center; }
+        
+        /* Pola tekstowe i przyciski */
+        input { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; color: white; background: #28a745;}
+        button.btn-blue { background: #007bff; }
+        button.btn-red { background: #dc3545; }
+        button.btn-dark-red { background: #8b0000; margin-top: 25px; }
+        
+        /* Wiadomości systemowe */
+        .msg-sys { font-size: 14px; margin-top: 10px; font-weight: bold; text-align: center; }
+        .error { color: red; }
+        .success { color: green; }
+
+        /* --- NOWY LAYOUT CZATU (FLEXBOX) --- */
+        #appWrapper { display: none; max-width: 1200px; margin: 0 auto; gap: 20px; height: 85vh; }
+        
+        /* LEWA STRONA (CZAT) */
+        #chatSection { flex-grow: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); overflow: hidden; }
+        #chatMessages { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #eef2f5; }
+        
+        /* Pole wpisywania w czacie */
+        #chatInputArea { display: flex; padding: 15px; background: #fff; border-top: 1px solid #ccc; }
+        #chatInputArea input { margin: 0; flex-grow: 1; border-radius: 20px; padding: 10px 15px; }
+        #chatInputArea button { width: auto; margin: 0 0 0 10px; border-radius: 20px; padding: 0 25px; }
+
+        /* PRAWA STRONA (PROFIL) */
+        #profileSection { width: 300px; flex-shrink: 0; text-align: center; height: fit-content; }
+        #avatarDisplay { max-width: 120px; border-radius: 50%; display: none; margin: 15px auto; border: 3px solid #ccc; object-fit: cover; aspect-ratio: 1/1; }
+
+        /* --- WYGLĄD WIADOMOŚCI ("Dymki") --- */
+        .msg-row { display: flex; align-items: flex-end; width: 100%; }
+        .msg-row.own { justify-content: flex-end; } /* Twoje do prawej */
+        .msg-row.other { justify-content: flex-start; } /* Innych do lewej */
+        
+        .msg-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #ddd; flex-shrink: 0; }
+        .msg-row.own .msg-avatar { margin-left: 10px; }
+        .msg-row.other .msg-avatar { margin-right: 10px; }
+        
+        .msg-content { display: flex; flex-direction: column; max-width: 70%; }
+        .msg-row.own .msg-content { align-items: flex-end; }
+        .msg-row.other .msg-content { align-items: flex-start; }
+        
+        .msg-name { font-size: 11px; color: #666; margin-bottom: 2px; }
+        .msg-bubble { padding: 10px 15px; border-radius: 18px; word-break: break-word; font-size: 15px; }
+        
+        /* Kolory dymków */
+        .msg-row.own .msg-bubble { background: #0084ff; color: white; border-bottom-right-radius: 4px; }
+        .msg-row.other .msg-bubble { background: #e4e6eb; color: black; border-bottom-left-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <!-- EKRAN LOGOWANIA -->
+    <div class="container center-box" id="authSection">
+        <h2>Zaloguj się</h2>
+        <input type="text" id="username" placeholder="Login">
+        <input type="password" id="password" placeholder="Hasło">
+        <button class="btn-blue" onclick="login()">Zaloguj</button>
+        <button onclick="register()">Załóż konto</button>
+        <div id="authMsg" class="msg-sys"></div>
+    </div>
+
+    <!-- EKRAN GŁÓWNY (CZAT + PROFIL) -->
+    <div id="appWrapper">
+        
+        <!-- LEWA STRONA: CZAT -->
+        <div id="chatSection">
+            <div id="chatMessages">
+                <!-- Tu wpadają wiadomości generowane przez JavaScript -->
+            </div>
+            <div id="chatInputArea">
+                <input type="text" id="chatInput" placeholder="Napisz wiadomość..." onkeypress="handleEnter(event)">
+                <button class="btn-blue" onclick="sendMessage()">Wyślij</button>
+            </div>
+        </div>
+
+        <!-- PRAWA STRONA: PROFIL -->
+        <div class="container" id="profileSection">
+            <h2 id="welcomeText">Witaj!</h2>
+            <img id="avatarDisplay" src="" alt="Awatar">
+            <h3 id="displayNameDisplay"></h3>
+
+            <hr>
+            <h4>Zmień wygląd</h4>
+            <input type="text" id="newDisplayName" placeholder="Wyświetlana nazwa">
+            <input type="text" id="newAvatarUrl" placeholder="Link do zdjęcia (URL)">
+            <button class="btn-blue" onclick="updateProfile()">Zapisz zmiany</button>
+            <div id="profileMsg" class="msg-sys"></div>
+
+            <br><br>
+            <button class="btn-red" onclick="logout()">Wyloguj się</button>
+            <button class="btn-dark-red" onclick="deleteAccount()">Usuń konto na zawsze</button>
+        </div>
+
+    </div>
+
+    <script>
+        let currentUser = null;
+        let currentPassword = null;
+        let chatPollInterval = null; // Pętla odpytująca czat
+
+        // --- OBSŁUGA KONT ---
+        async function register() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if(!u || !p) return showMsg('authMsg', 'Podaj login i hasło!', false);
+
+            const res = await fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            });
+            const data = await res.json();
+            showMsg('authMsg', data.message, data.success);
+        }
+
+        async function login() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if(!u || !p) return showMsg('authMsg', 'Podaj login i hasło!', false);
+
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                currentUser = u;
+                currentPassword = p;
+                renderProfile(data.profile);
+                
+                // --- START CZATU ---
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('appWrapper').style.display = 'flex';
+                
+                document.body.classList.add('logged-in-bg'); 
+                
+                loadMessages(); // Ładujemy od razu
+                chatPollInterval = setInterval(loadMessages, 2000); // i co 2 sekundy odpytujemy
+            } else {
+                showMsg('authMsg', data.message, false);
+            }
+        }
+
+        async function updateProfile() {
+            const res = await fetch('/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: currentUser,
+                    password: currentPassword,
+                    displayName: document.getElementById('newDisplayName').value,
+                    avatar: document.getElementById('newAvatarUrl').value
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                renderProfile(data.profile);
+                showMsg('profileMsg', data.message, true);
+                loadMessages(); // Odśwież czat by zobaczyć swój nowy awatar/nazwę
+            }
+        }
+
+        async function deleteAccount() {
+            if (!confirm("Czy na pewno chcesz usunąć konto? Wszystkie Twoje wiadomości również ZNIKNĄ NA ZAWSZE.")) return;
+
+            const res = await fetch('/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser, password: currentPassword })
+            });
+            const data = await res.json();
+            if (data.success) {
+                logout();
+                showMsg('authMsg', data.message, true);
+            }
+        }
+
+        // --- OBSŁUGA CZATU ---
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value;
+            if (!text.trim()) return;
+
+            input.value = ''; // Czyścimy pole natychmiast
+            
+            await fetch('/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser, password: currentPassword, text: text })
+            });
+            
+            loadMessages(); // Po wysłaniu od razu pobieramy nową historię
+        }
+
+        // Obsługa kliknięcia "Enter" na klawiaturze do wysyłania
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        async function loadMessages() {
+            if (!currentUser) return; // Zabezpieczenie
+
+            const res = await fetch('/messages');
+            const msgs = await res.json();
+            const box = document.getElementById('chatMessages');
+            
+            // Sprawdzamy czy użytkownik przewinął na sam dół, żeby nie "kopać" go po scrollu, gdy czyta historię
+            const isAtBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 50;
+
+            box.innerHTML = '';
+            
+            msgs.forEach(m => {
+                const isOwn = m.username === currentUser;
+                const row = document.createElement('div');
+                row.className = 'msg-row ' + (isOwn ? 'own' : 'other');
+                
+                // Zabezpieczenie przez wpisywaniem kodu HTML w czat
+                const safeText = m.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                
+                // Awatar z "fallbackiem" (jeśli obrazek nie działa lub go nie ma)
+                const avatarImg = m.avatar ? `<img class="msg-avatar" src="${m.avatar}" onerror="this.src='https://via.placeholder.com/40'">` 
+                                           : `<div class="msg-avatar"></div>`;
+
+                // Jeśli to MY, dymek awatara wstawiamy po prawej
+                if (isOwn) {
+                    row.innerHTML = `
+                        <div class="msg-content">
+                            <div class="msg-name">Ty</div>
+                            <div class="msg-bubble">${safeText}</div>
+                        </div>
+                        ${avatarImg}
+                    `;
+                } else {
+                    row.innerHTML = `
+                        ${avatarImg}
+                        <div class="msg-content">
+                            <div class="msg-name">${m.displayName}</div>
+                            <div class="msg-bubble">${safeText}</div>
+                        </div>
+                    `;
+                }
+                box.appendChild(row);
+            });
+
+            // Auto-scroll w dół
+            if (isAtBottom) box.scrollTop = box.scrollHeight;
+        }
+
+        // --- WYLOGOWANIE I RYSOWANIE PROFILU ---
+        function logout() {
+            currentUser = null;
+            currentPassword = null;
+            
+            // Zatrzymujemy czat
+            clearInterval(chatPollInterval);
+            
+            document.getElementById('appWrapper').style.display = 'none';
+            document.getElementById('authSection').style.display = 'block';
+            
+            document.body.classList.remove('logged-in-bg');
+            
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('chatInput').value = '';
+            document.getElementById('authMsg').innerText = '';
+            document.getElementById('profileMsg').innerText = '';
+        }
+
+        function renderProfile(profile) {
+            document.getElementById('welcomeText').innerText = 'Konto: ' + currentUser;
+            document.getElementById('newDisplayName').value = profile.displayName || '';
+            document.getElementById('newAvatarUrl').value = profile.avatar || '';
+
+            document.getElementById('displayNameDisplay').innerText = profile.displayName || 'Brak nazwy';
+            
+            const av = document.getElementById('avatarDisplay');
+            if (profile.avatar) {
+                av.src = profile.avatar;
+                av.style.display = 'block';
+            } else {
+                av.style.display = 'none';
+            }
+        }
+
+        function showMsg(id, msg, isSuccess) {
+            const el = document.getElementById(id);
+            el.innerText = msg;
+            el.className = 'msg-sys ' + (isSuccess ? 'success' : 'error');
+        }
+    </script>
+</body>
+</html>
