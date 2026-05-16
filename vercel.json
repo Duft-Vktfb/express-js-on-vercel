@@ -1,15 +1,4 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/server.cjs",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "api/server.cjs"
-    }
-  ]
+  "buildCommand": "",
+  "outputDirectory": "public"
 }
